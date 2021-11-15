@@ -1,7 +1,8 @@
 import streamlit as st
 import matplotlib.pyplot as plt
 import numpy as np
-from obspy.io.segy.segy import _read_su
+from obspy.io.segy.segy import _read_su, _read_segy 
+from obspy.io.seg2.seg2 import _read_seg2
 
 #Function to plot seismic data with wiggle traces
 def wigb(data, title='Dado', xlabel='Traces', ylabel='Time (ms)', filename='image.png',
@@ -36,10 +37,12 @@ def wigb(data, title='Dado', xlabel='Traces', ylabel='Time (ms)', filename='imag
 
     t_axis= np.linspace(0,(ns-1)*dt,ns)
     fig, ax = plt.subplots(figsize=(d1,d2))
+    #plt.yticks(ticks=np.arange(0,ns-1,20),labels=np.arange(0,(ns-1)*dt,20*dt))
     ax.set_ylim(ns*dt,0)
     plt.title(title)
     plt.xlabel(xlabel)
     plt.ylabel(ylabel)
+    
     for tr in np.arange(min_offset-1,ntr,doffset):
         x = np.divide(data[:,tr],amx)+tr+1
         ax.plot(x,t_axis,'k-')
@@ -81,10 +84,12 @@ def seis_image(data, title='Data', xlabel='Traces', ylabel='Time (ms)', filename
     ntr = data.shape[1]
     ns = data.shape[0]
     fig, ax = plt.subplots(figsize=(d1,d2))
-    ax.set_ylim(ns*dt,0)
+    
     plt.title(title)
     plt.xlabel(xlabel)
     plt.ylabel(ylabel)
+    
+    #plt.yticks(ticks=np.arange(0,ns-1,20),labels=np.arange(0,(ns-1)*dt,20*dt))
     plt.imshow(data,cmap='RdBu',aspect='auto')
     st.pyplot(fig=fig)
     if sf:
@@ -95,11 +100,8 @@ def seis_image(data, title='Data', xlabel='Traces', ylabel='Time (ms)', filename
 def read_su(file_name):
 
     """
-    Reads a SEG-Y file and returns a list of traces.
+    Reads a SU file and returns a list of traces.
     """
-
-    
-    
 
     stream = _read_su(file_name)
     ns = len(stream.traces[0].data)
@@ -113,34 +115,92 @@ def read_su(file_name):
         i += 1
     return shot_gather
 
+def read_seg2(file_name):
+
+    """
+    Reads a SEG2 (.dat) file and returns a list of traces.
+    """
+
+    stream = _read_seg2(file_name)
+    ns = len(stream.traces[0].data)
+    ntraces = len(stream.traces)
+
+    shot_gather = np.ndarray([ns,ntraces])
+    
+    i = 0 
+    for t in stream.traces:
+        shot_gather[:,i]= t.data
+        i += 1
+    return shot_gather
+
+
+def read_segy(file_name):
+
+    """
+    Reads a SEGY file and returns a list of traces.
+    """
+
+    stream = _read_segy(file_name)
+    ns = len(stream.traces[0].data)
+    ntraces = len(stream.traces)
+
+    shot_gather = np.ndarray([ns,ntraces])
+    
+    i = 0 
+    for t in stream.traces:
+        shot_gather[:,i]= t.data
+        i += 1
+    return shot_gather
+
+
+        
 """
+
 # Geo Cat Eye
 Drag and drop your seismic data to visualize it.
 """
 
 
-uploaded_file = st.file_uploader("Upload Files",type=['su'])
+uploaded_file = st.file_uploader("Upload Files",type=['su','dat','sgy','rd3'])
+
+
 
 if uploaded_file is not None:
-    dado = read_su(uploaded_file)
+    word = uploaded_file.name
+    filetype = word.partition('.')[2]
+    st.markdown(filetype)
+    if filetype == 'su':
+        dado = read_su(uploaded_file)
+    elif filetype == 'dat':
+        dado = read_seg2(uploaded_file)
+    elif filetype == 'sgy':
+        dado = read_segy(uploaded_file)
 
-    option = st.selectbox(
+
+    col1, col2 = st.columns(2)
+    option = col1.selectbox(
         'Select the desired plot type',
         ['Wiggle','Image'])
 
-    title = st.text_input("Plot title", 'Data')
-    xlabel = st.text_input("Xlabel", 'Traces')
-    ylabel = st.text_input("Ylabel", 'Time (ms)')
+    
+    title = col2.text_input("Plot title", 'Data')
+    xlabel = col1.text_input("Xlabel", 'Traces')
+    if option == 'Wiggle':
+        ylabel = col2.text_input("Ylabel", 'Time (ms)')
+    elif option == 'Image':
+        ylabel = col2.text_input("Ylabel", 'Samples')
 
 
-    dt = st.number_input("Time interval", 0.100,format="%.3f")
-    d1 = st.number_input("Dimension 1 of figure", 8)
-    d2 = st.number_input("Dimension 2 of figure", 10)
+    dt = st.number_input("Time interval (dt)", 0.100,format="%.3f")
+    d1 = col1.number_input("Dimension 1 of the figure", 8)
+    d2 = col2.number_input("Dimension 2 of the figure", 10)
     if option == 'Wiggle':
         wigb(dado,title=title,xlabel=xlabel,ylabel=ylabel,dt=dt,d1=d1,d2=d2)
     
     elif option == 'Image':
         seis_image(dado,title=title,xlabel=xlabel,ylabel=ylabel,dt=dt,d1=d1,d2=d2)
+
+   
 
 
 
