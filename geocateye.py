@@ -1,12 +1,14 @@
 import streamlit as st
 import spadini as sp
 
+st.set_page_config(page_title = 'GeoCatEye', page_icon = 'favicon.ico')
         
 """
 
 # Geo Cat Eye
 Drag and drop your seismic or gpr data to view it.
 """
+
 
 
 uploaded_file = st.file_uploader("Upload Files",type=['su','dat','sgy','rd3'])
